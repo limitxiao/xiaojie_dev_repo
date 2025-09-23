@@ -33,12 +33,36 @@ class LibraryManager:
         except ValueError:
             return False
     
+    def is_book_borrowed(self, isbn: str) -> bool:
+        """Check if a book is currently borrowed."""
+        for record in self.borrowing_records:
+            if record.book_isbn == isbn and record.return_date is None:
+                return True
+        return False
+    
+    def force_remove_book(self, isbn: str) -> bool:
+        """Force remove a book from the library, handling active borrowing records."""
+        if isbn not in self.books:
+            return False
+        
+        # Mark any active borrowing records as force-returned
+        for record in self.borrowing_records:
+            if record.book_isbn == isbn and record.return_date is None:
+                record.return_date = datetime.now()
+        
+        del self.books[isbn]
+        return True
+    
     def remove_book(self, isbn: str) -> bool:
         """Remove a book from the library."""
         if isbn not in self.books:
             return False
         
-        # Bug: Doesn't check if book is currently borrowed
+        # Check if book is currently borrowed
+        for record in self.borrowing_records:
+            if record.book_isbn == isbn and record.return_date is None:
+                return False  # Cannot remove a book that is currently borrowed
+        
         del self.books[isbn]
         return True
     

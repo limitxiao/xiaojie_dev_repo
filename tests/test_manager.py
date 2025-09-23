@@ -32,6 +32,28 @@ class TestLibraryManager:
         assert result is True
         assert "1234567890" not in populated_library.books
     
+    def test_remove_borrowed_book_fails(self, populated_library):
+        """Test that removing a currently borrowed book fails."""
+        # First borrow the book
+        borrow_result = populated_library.borrow_book("1234567890", "John Doe")
+        assert borrow_result is True
+        
+        # Now try to remove it - should fail
+        remove_result = populated_library.remove_book("1234567890")
+        assert remove_result is False
+        assert "1234567890" in populated_library.books  # Book should still exist
+    
+    def test_remove_returned_book_succeeds(self, populated_library):
+        """Test that removing a book that was borrowed but returned succeeds."""
+        # Borrow and then return the book
+        populated_library.borrow_book("1234567890", "John Doe")
+        populated_library.return_book("1234567890")
+        
+        # Now removing should succeed
+        result = populated_library.remove_book("1234567890")
+        assert result is True
+        assert "1234567890" not in populated_library.books
+    
     def test_remove_nonexistent_book(self, library_manager):
         """Test removing a book that doesn't exist."""
         result = library_manager.remove_book("9999999999")
@@ -135,3 +157,41 @@ class TestLibraryManager:
         assert report["total_books"] == 3
         assert report["available_books"] == 2
         assert report["borrowed_books"] == 1
+    
+    def test_is_book_borrowed(self, populated_library):
+        """Test checking if a book is currently borrowed."""
+        # Initially not borrowed
+        assert populated_library.is_book_borrowed("1234567890") is False
+        
+        # After borrowing
+        populated_library.borrow_book("1234567890", "John Doe")
+        assert populated_library.is_book_borrowed("1234567890") is True
+        
+        # After returning
+        populated_library.return_book("1234567890")
+        assert populated_library.is_book_borrowed("1234567890") is False
+    
+    def test_is_book_borrowed_nonexistent(self, library_manager):
+        """Test checking if a nonexistent book is borrowed."""
+        assert library_manager.is_book_borrowed("9999999999") is False
+    
+    def test_force_remove_book_success(self, populated_library):
+        """Test force removing a book even when borrowed."""
+        # Borrow the book
+        populated_library.borrow_book("1234567890", "John Doe")
+        assert populated_library.is_book_borrowed("1234567890") is True
+        
+        # Force remove should succeed
+        result = populated_library.force_remove_book("1234567890")
+        assert result is True
+        assert "1234567890" not in populated_library.books
+        
+        # The borrowing record should be marked as returned
+        records = populated_library.get_borrowing_history("John Doe")
+        assert len(records) == 1
+        assert records[0].return_date is not None
+    
+    def test_force_remove_nonexistent_book(self, library_manager):
+        """Test force removing a book that doesn't exist."""
+        result = library_manager.force_remove_book("9999999999")
+        assert result is False
